@@ -14,7 +14,7 @@
 importScripts("https://storage.googleapis.com/workbox-cdn/releases/4.3.1/workbox-sw.js");
 
 importScripts(
-  "/AntAlmanac/precache-manifest.6e80c1ce6931276fc168a47f3d1da762.js"
+  "/AntAlmanac/precache-manifest.3b9519d1aeeb4a7505e1699b7da962db.js"
 );
 
 self.addEventListener('message', (event) => {
