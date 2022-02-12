@@ -47,6 +47,11 @@ class Graph extends PureComponent {
             body: JSON.stringify({ sectionCode: this.props.pastSectionCode, pastTerm: this.props.pastTerm }),
         });
 
+        if (data.status < 200 || data.status > 300) {
+            console.log(data.statusText);
+            return false;
+        }
+
         const jsonData = await data.json();
 
         return jsonData.data

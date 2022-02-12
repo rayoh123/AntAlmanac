@@ -33,6 +33,10 @@ class NotificationHub extends PureComponent {
                 body: JSON.stringify({ phoneNumber: storedPhoneNumber.replace(/ /g, '') }),
             });
 
+            if (response.status < 200 || response.status > 300) {
+                console.log(response.statusText);
+                return;
+            }
             const jsonResp = await response.json();
 
             this.setState({
