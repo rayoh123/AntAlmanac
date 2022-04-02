@@ -1,4 +1,4 @@
-import React, { Fragment, PureComponent } from 'react';
+import React, { PureComponent } from 'react';
 import { Map, TileLayer, withLeaflet, Polyline, Marker } from 'react-leaflet';
 import buildingCatalogue from './static/buildingCatalogue';
 import locations from '../SectionTable/static/locations.json';
@@ -49,6 +49,7 @@ export default class UCIMap extends PureComponent {
         poly: [],
         info_markers: [],
         info_marker: null,
+        pins: {},
     };
 
     generateRoute = (day) => {
@@ -227,6 +228,7 @@ export default class UCIMap extends PureComponent {
     };
 
     updateCurrentScheduleIndex = () => {
+        this.createMarkers(this.state.day);
         this.generateRoute(this.state.day);
     };
 
@@ -234,10 +236,12 @@ export default class UCIMap extends PureComponent {
         this.setState({
             eventsInCalendar: AppStore.getEventsInCalendar(),
         });
+        this.createMarkers(this.state.day);
         this.generateRoute(this.state.day);
     };
 
     componentDidMount = () => {
+        this.createMarkers(this.state.day);
         AppStore.on('addedCoursesChange', this.updateEventsInCalendar);
         AppStore.on('currentScheduleIndexChange', this.updateCurrentScheduleIndex);
     };
@@ -247,13 +251,10 @@ export default class UCIMap extends PureComponent {
         AppStore.removeListener('currentScheduleIndexChange', this.updateCurrentScheduleIndex);
     };
 
-    createMarkers = () => {
-        const markers = [];
-
-        // Tracks courses that have already been pinned on the map, so there are no duplicates
-        let pinnedCourses = new Set();
+    createMarkers = (day) => {
         let pins = {};
         let courses = new Set();
+        // Tracks courses that have already been pinned on the map, so there are no duplicates
 
         // Filter out those in a different schedule or those not on a certain day (mon, tue, etc)
         this.state.eventsInCalendar
@@ -263,7 +264,7 @@ export default class UCIMap extends PureComponent {
                         (
                             event.isCustomEvent ||
                             !event.scheduleIndices.includes(AppStore.getCurrentScheduleIndex()) ||
-                            !event.start.toString().includes(DAYS[this.state.day]) ||
+                            !event.start.toString().includes(DAYS[day]) ||
                             courses.has(event.sectionCode) || // Remove duplicate courses that appear in the calendar
                             !courses.add(event.sectionCode)
                         ) // Adds to the set and return false
@@ -278,13 +279,20 @@ export default class UCIMap extends PureComponent {
                 } else {
                     pins[buildingCode] = [event];
                 }
-            }); // Creates a map between buildingCodes to pins to determine stacks
+            }); // Creates a map between buildingCodes to pins to determine stacks and store in pins
+        this.setState({ pins: pins });
+    };
+
+    drawMarkers = () => {
+        const markers = [];
+        const pins = this.state.pins;
         for (const buildingCode in pins) {
             // Get building code, get id of building code, which will get us the building data from buildingCatalogue
             const id = locations[buildingCode];
             const locationData = buildingCatalogue[id];
-
-            pins[buildingCode].reverse().forEach((event, stackIndex, arr) => {
+            const courses = pins[buildingCode];
+            for (let index = courses.length - 1; index >= 0; index--) {
+                const event = courses[index];
                 const courseString = `${event.title} ${event.sectionType} @ ${event.bldg}`;
                 if (locationData === undefined) return;
 
@@ -293,8 +301,6 @@ export default class UCIMap extends PureComponent {
                     locationData.name.indexOf('(') + 1,
                     locationData.name.indexOf(')')
                 );
-
-                pinnedCourses.add(courseString);
 
                 markers.push(
                     <MapMarkerPopup
@@ -306,17 +312,17 @@ export default class UCIMap extends PureComponent {
                         lng={locationData.lng}
                         acronym={acronym}
                         index={this.state.day ? event.index.toString() : ''}
-                        stackIndex={arr.length - 1 - stackIndex}
+                        stackIndex={courses.length - 1 - index}
                     >
-                        <Fragment>
+                        <>
                             <hr />
                             Class: {`${event.title} ${event.sectionType}`}
                             <br />
                             Room: {event.bldg.split(' ').slice(-1)}
-                        </Fragment>
+                        </>
                     </MapMarkerPopup>
                 );
-            });
+            }
         }
         return markers;
     };
@@ -348,50 +354,50 @@ export default class UCIMap extends PureComponent {
 
     render() {
         return (
-            <Fragment>
-                <Map
-                    center={[this.state.lat, this.state.lng]}
-                    zoom={this.state.zoom}
-                    maxZoom={19}
-                    style={{ height: '100%' }}
-                >
-                    <DayTabs
-                        day={this.state.day}
-                        setDay={(day) => {
-                            this.setState({ day: day });
-                            this.generateRoute(day);
-                        }}
-                        handleSearch={this.handleSearch}
+            <Map
+                center={[this.state.lat, this.state.lng]}
+                zoom={this.state.zoom}
+                maxZoom={19}
+                style={{ height: '100%' }}
+            >
+                <DayTabs
+                    day={this.state.day}
+                    setDay={(day) => {
+                        this.createMarkers(day);
+                        this.generateRoute(day);
+                        this.setState({ day: day });
+                    }}
+                    handleSearch={this.handleSearch}
+                />
+
+                <LocateControl />
+
+                <TileLayer
+                    attribution={ATTRIBUTION_MARKUP}
+                    url={`https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=${ACCESS_TOKEN}`}
+                    tileSize={512}
+                    zoomOffset={-1}
+                />
+
+                {this.state.poly}
+
+                {this.state.info_marker}
+
+                {this.drawMarkers()}
+
+                {this.state.selected ? (
+                    <MapMarkerPopup
+                        image={this.state.selected_img}
+                        location={this.state.selected}
+                        lat={this.state.lat}
+                        lng={this.state.lng}
+                        acronym={this.state.selected_acronym}
+                        markerColor="#FF0000"
+                        index="!"
+                        stackIndex={this.state.selected_acronym in this.state.pins ? -1 : 0}
                     />
-
-                    <LocateControl />
-
-                    <TileLayer
-                        attribution={ATTRIBUTION_MARKUP}
-                        url={`https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=${ACCESS_TOKEN}`}
-                        tileSize={512}
-                        zoomOffset={-1}
-                    />
-
-                    {this.state.poly}
-
-                    {this.state.info_marker}
-
-                    {this.createMarkers()}
-
-                    {this.state.selected ? (
-                        <MapMarkerPopup
-                            image={this.state.selected_img}
-                            location={this.state.selected}
-                            lat={this.state.lat}
-                            lng={this.state.lng}
-                            acronym={this.state.selected_acronym}
-                            markerColor="#FF0000"
-                            index=""
-                        />
-                    ) : null}
-                </Map>
-            </Fragment>
+                ) : null}
+            </Map>
         );
     }
 }

@@ -1,4 +1,4 @@
-import React, { Fragment, PureComponent, useEffect } from 'react';
+import React, { PureComponent, useEffect } from 'react';
 import { CloudDownload, Save } from '@material-ui/icons';
 import {
     Button,
@@ -12,6 +12,7 @@ import {
 import { loadSchedule, saveSchedule } from '../../actions/AppStoreActions';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import Checkbox from '@material-ui/core/Checkbox';
+import { isDarkMode } from '../../helpers';
 
 class LoadSaveButtonBase extends PureComponent {
     state = {
@@ -67,7 +68,7 @@ class LoadSaveButtonBase extends PureComponent {
 
     render() {
         return (
-            <Fragment>
+            <>
                 <Button
                     onClick={this.handleOpen}
                     color="inherit"
@@ -103,15 +104,15 @@ class LoadSaveButtonBase extends PureComponent {
                         />
                     </DialogContent>
                     <DialogActions>
-                        <Button onClick={() => this.handleClose(true)} color="primary">
+                        <Button onClick={() => this.handleClose(true)} color={isDarkMode() ? 'white' : 'primary'}>
                             Cancel
                         </Button>
-                        <Button onClick={() => this.handleClose(false)} color="primary">
+                        <Button onClick={() => this.handleClose(false)} color={isDarkMode() ? 'white' : 'primary'}>
                             {this.props.actionName}
                         </Button>
                     </DialogActions>
                 </Dialog>
-            </Fragment>
+            </>
         );
     }
 }
@@ -128,10 +129,10 @@ const LoadSaveScheduleFunctionality = () => {
     }, []);
 
     return (
-        <Fragment>
+        <>
             <LoadSaveButtonBase actionName={'Save'} action={saveSchedule} />
             <LoadSaveButtonBase actionName={'Load'} action={loadSchedule} />
-        </Fragment>
+        </>
     );
 };
 
